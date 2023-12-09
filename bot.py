@@ -1,44 +1,122 @@
 invalid_cmd_msg = "Invalid command."
 
+help_message = """
+    This is a CLI Bot-assistant for a phone-book.
+    List of supported commands:
+        - "hello"
+        - "add"
+        - "change"
+        - "phone"
+        - "all"
+        - "close", "exit"
+        - "help"
+"""
 
+
+class ErrorNoContact(Exception):
+    pass
+
+
+class ErrorNoContacts(Exception):
+    pass
+
+
+class ErrorContactExist(Exception):
+    pass
+
+
+def parsing_errors(func):
+    def inner(*args, **kwargs):
+        try:
+            ret = func(*args, **kwargs)
+            return ret
+        except Exception as e:
+            return "", ""
+
+    return inner
+
+
+def any_errors(func):
+    def inner(*args, **kwargs):
+        try:
+            ret = func(*args, **kwargs)
+            return ret
+        except Exception as e:
+            return invalid_cmd_msg
+
+    return inner
+
+
+def get_errors(func):
+    def inner(*args, **kwargs):
+        try:
+            ret = func(*args, **kwargs)
+            return ret
+        except ErrorNoContact:
+            return "Contact doesn't exist."
+        except ErrorNoContacts:
+            return "Address book is empty."
+        except ValueError:
+            return "Give me a name please."
+
+    return inner
+
+
+def input_errors(func):
+    def inner(*args, **kwargs):
+        try:
+            ret = func(*args, **kwargs)
+            return ret
+        except ErrorContactExist:
+            return "Contact already exists."
+        except ValueError:
+            return "Give me name and phone please."
+
+    return inner
+
+
+@any_errors
+@input_errors
 def add(phone_book, args):
-    if len(args) < 2:
-        return invalid_cmd_msg
-    name = tuple(args[:-1])
+    name, number = args
     if name in phone_book:
-        return "Contact already exists."
-    number = args[-1]
+        raise ErrorContactExist
     phone_book[name] = number
     return "Contact added."
 
 
+@any_errors
+@get_errors
+@input_errors
 def update(phone_book, args):
-    if len(args) < 2:
-        return invalid_cmd_msg
-    name = tuple(args[:-1])
+    name, number = args
     if not name in phone_book:
-        return "Contact doesn't exist."
-    number = args[-1]
+        raise ErrorNoContact
     phone_book[name] = number
     return "Contact updated."
 
 
+@any_errors
+@get_errors
 def get(phone_book, args):
-    if len(args) == 0:
-        return invalid_cmd_msg
-    name = tuple(args)
+    if len(phone_book) == 0:
+        raise ErrorNoContacts
+    (name,) = args
     return phone_book.get(name, "Contact doesn't exist.")
 
 
+@any_errors
+@get_errors
 def get_all(phone_book):
     if len(phone_book) == 0:
-        return "No contacts."
+        raise ErrorNoContacts
     ret = []
     for user in phone_book:
-        ret.append(f"{' '.join(user)}: {phone_book[user]}")
+        ret.append(f"{user}: {phone_book[user]}")
     return "\n".join(ret)
 
 
+@parsing_errors
 def parse_input(user_input):
     cmd, *args = user_input.split()
     return cmd.strip().lower(), args
@@ -46,23 +124,27 @@ def parse_input(user_input):
 
 def run_phone_book_bot(phone_book):
     print("Welcome to the assistant bot!")
-    while True:
+    finish = False
+    while not finish:
         cmd, args = parse_input(input("Enter a command: "))
         if cmd == "hello":
-            print("How can I help you?")
+            message = "How can I help you?"
         elif cmd == "add":
-            print(add(phone_book, args))
+            message = add(phone_book, args)
         elif cmd == "change":
-            print(update(phone_book, args))
-        elif cmd == "phone":
-            print(get(phone_book, args))
+            message = update(phone_book, args)
+        elif cmd in ("phone"):
+            message = get(phone_book, args)
         elif cmd == "all":
-            print(get_all(phone_book))
+            message = get_all(phone_book)
         elif cmd in ("close", "exit"):
-            print("Good bye!")
-            break
+            message = "Good bye!"
+            finish = True
+        elif cmd == "help":
+            message = help_message
         else:
-            print(invalid_cmd_msg)
+            message = invalid_cmd_msg
+        print(message)
 
 
 def main():
