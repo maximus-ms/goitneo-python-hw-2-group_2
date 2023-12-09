@@ -1,3 +1,5 @@
+# from addressbook import AddressBook, Record, Phone
+
 invalid_cmd_msg = "Invalid command."
 
 help_message = """
